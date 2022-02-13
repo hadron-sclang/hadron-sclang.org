@@ -44,12 +44,12 @@ bytecode. The transitions between stacks are relatively expensive, so we take ca
 ## The Stack Frame
 
 Hadron allocates large-size `Frame` objects and adds them to the root set for scanning during garbage collection. The
-`Frame` objects are contiguous but rather large-size individual chunks of memory. Some compiler literature calls these
-"Stacklets." Excepting register spills, Hadron saves all values on the stack in `Slot` format, meaning they are all 8
-bytes with the header type tags included.
+`Frame` objects are not contiguous but rather individual chunks of memory with room for many stack frames in each. Some
+compiler literature calls these "Stacklets." Excepting register spills, Hadron saves all values on the stack in `Slot`
+format, meaning they are all 8 bytes with the header type tags included.
 
-Stack addresses grow upward, starting with the value in the frame pointer and ending with the register spill area past
-the stack pointer. Callee code expects a stack layout as follows:
+Within a Stacklet, stack addresses grow upward, starting with the value in the frame pointer and ending with the
+register spill area past the stack pointer. Callee code expects a stack layout as follows:
 
 | frame pointer | contents                           | stack pointer |
 |---------------|------------------------------------|---------------|
@@ -102,7 +102,8 @@ so:
 |               | Argument n                         | `sp` - 1      |
 |               | < register spill area>             | `sp`          |
 
-Next, the runtime has to identify the specific Method that this message targets, from which we retrieve:
+Next, the runtime has to identify the specific Method on the specific Class that this message targets, from which we
+retrieve:
 
  * The names, order, and count of expected arguments
  * The pointer to the compiled code to jump into
@@ -201,6 +202,5 @@ argument in the stack with a pointer to that new `Array`.
 ## Allocation Resolution and Move Scheduling
 
 ## Machine Code Emission
-
 
 # Class Library Compilation
