@@ -5,6 +5,8 @@ author: Luke Nihlen
 type: "posts"
 ---
 
+{{< toc >}}
+
 # Work In Progress
 
 The Hadron code repository has several old and out-of-date documents with notes on the design, so I'm systematically
@@ -39,7 +41,7 @@ Hadron can transition from compiled C++ code into JIT bytecode and back out agai
 code responsible for maintaining the C++ program stack and all registers, and then jumping to the Hadron
 bytecode. The transitions between stacks are relatively expensive, so we take care to minimize them.
 
-### The Stack Frame
+## The Stack Frame
 
 Hadron allocates large-size `Frame` objects and adds them to the root set for scanning during garbage collection. The
 `Frame` objects are contiguous but rather large-size individual chunks of memory. Some compiler literature calls these
@@ -70,7 +72,7 @@ method calls and register allocation overflow.
 Method calls always include a `this` pointer provided as the first argument. As `this` is also the default return value
 for messages, we re-use this slot to store the return value of the message, avoiding an additional copy in those cases.
 
-### Preparing the Stack for Message Dispatch
+## Preparing the Stack for Message Dispatch
 
 The caller code prepares a new stack frame and copies the arguments, both in-order and keyword-based, into the new stack
 frame. As SuperCollider is a dynamic programming language, we don't know the message's intended recipient at compile
@@ -158,7 +160,7 @@ this case, the dispatch code will first copy all four slots of default values an
 to the second argument position, for a total of five slot copies. It may be possible to speed this up significantly with
 inline dispatch.
 
-#### Stack Overflow
+### Stack Overflow
 
 During compilation, Hadron tracks the "high water mark," meaning the highest amount of stack consumption through all
 possible pathways of the callee code. Beyond register spills, message dispatch consumes stack space in the callee code
@@ -166,13 +168,15 @@ setting up the stack frame for callee message sends. At dispatch time, we need t
 space left in the Stacklet for the callee code. If not, we create a new Stacklet and redirect the stack and frame
 pointers to the new Stacklet.
 
-#### VarArgs
+### VarArgs
 
 Variable argument messages expect the last argument to be an `Array` containing any additional arguments specified.
 The dispatch code creates a new `Array` object from those arguments during stack setup. We then overwrite the final
 argument in the stack with a pointer to that new `Array`.
 
-### Primitive Support
+## Primitive Support
+
+## Garbage Collection
 
 # Compilation Stages
 
@@ -198,6 +202,5 @@ argument in the stack with a pointer to that new `Array`.
 
 ## Machine Code Emission
 
-# Garbage Collection
 
 # Class Library Compilation
