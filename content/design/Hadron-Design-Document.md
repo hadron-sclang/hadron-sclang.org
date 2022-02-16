@@ -58,10 +58,10 @@ register spill area past the stack pointer. Callee code expects a stack layout a
 | `fp` + 2      | Caller Return Address              |               |
 | `fp` + 3      | Message Selector Symbol            |               |
 |    ...        | < dispatch work area >             |  ...          |
-|               | Argument 0 (`this`) / Return Value | `sp` - n      |
-|               | Argument 1                         | `sp` - n + 1  |
+|               | Argument n - 1                     | `sp` - n      |
 |               |  ...                               |  ...          |
-|               | Argument n - 1                     | `sp` - 1      |
+|               | Argument 1                         | `sp` - 2      |
+|               | Argument 0 (`this`) / Return Value | `sp` - 1      |
 |               | < register spill area>             | `sp`          |
 
 The dispatch work area is variable size, which we account for by maintaining two separate pointers into the stack. The
@@ -96,10 +96,10 @@ so:
 | `fp` + 8      | Keyword Argument 1 Keyword         |               |
 | `fp` + 9      | Keyword Argument 1 Value           |               |
 |  ...          |  ...                               |               |
-|               | Argument 0 (`this`) / Return Value | `sp` - n      |
-|               | Argument 1                         | `sp` - n + 1  |
+|               | Argument n - 1                     | `sp` - n      |
 |               |  ...                               |  ...          |
-|               | Argument n                         | `sp` - 1      |
+|               | Argument 1                         | `sp` - 2      |
+|               | Argument 0 (`this`) / Return Value | `sp` - 1      |
 |               | < register spill area>             | `sp`          |
 
 Next, the runtime has to identify the specific Method on the specific Class that this message targets, from which we
