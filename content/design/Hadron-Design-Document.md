@@ -102,24 +102,15 @@ so:
 |               | Argument 0 (`this`) / Return Value | `sp` - 1      |
 |               | < register spill area>             | `sp`          |
 
-Next, the runtime has to identify the specific Method on the specific Class that this message targets, from which we
-retrieve:
+Next, the runtime has to identify the method on the class that this message targets, from which we retrieve:
 
  * The names, order, and count of expected arguments
  * The pointer to the compiled code to jump into
  * The stack "high water mark," the maximum possible size of the stack (past `sp`) in the callee code
 
-This part of the dispatch process is a high priority target for optimization, as SuperCollider is a message-heavy
-programming language. It seems plausible that the compiler could narrow the range of options for some messages
-considerably, possibly allowing for dispatch to happen entirely inline in some cases. It feels intuitive that a
-transition back into C++ on every message adds unnecessary drag to the system. However, this trades off against
-the C++ compiler being able to generate optimized bytecode that is likely much faster in most cases than Hadron
-compiled code. Dispatch exceptions will always require a transition to C++ code anyway, so inlining message
-dispatch remains a future work item, and all dispatch code routes through C++.
-
 The dispatch code follows the following pseudocode to finalize the stack before method entry:
 
-```
+```plain
 remainingSize <- size remaining in current Stacklet past sp
 
 if remainingSize >= highWaterMark:
@@ -204,3 +195,51 @@ argument in the stack with a pointer to that new `Array`.
 ## Machine Code Emission
 
 # Class Library Compilation
+
+The SuperCollider workflow presumes an ahead-of-time class library compilation, and the interpreter automatically
+compiles the class library on startup. The SuperCollider development community maintains the official class library in
+the [SCClassLibrary directory](https://github.com/supercollider/supercollider/tree/develop/SCClassLibrary) in the
+SuperCollider repository. It consists of roughly 350 files and 75k lines of code.
+
+## The First Pass
+
+SuperCollider supports object composition through single inheritance. A derived class inherits the class and instance
+variables of its superclass, along with its methods. A derived class can override any superclass method and access the
+superclass method via the `super` keyword. Therefore, to compile a derived class requires that all superclasses instance
+and class variables are already known, at minimum.
+
+The compilation process scans the input class files in arbitrary order, so we compile the class library in multiple
+passes. The first pass extracts all class metadata from each file and builds Abstract Syntax Trees out of each
+defined method. Building the AST allows the class library to unload the file after scanning, freeing up that memory for
+subsequent passes. The first pass defines the entire class heiarchy for the library.
+
+## The Second Pass
+
+The second pass can then traverse the library in heirarchical order from the root `Object` to all subclasses. This pass
+defines all the member and class variables for each class by concatenating the derived object variables onto a new copy
+of the superclass variables. The second pass also builds a few data structures that detail which method selectors each
+object supports.
+
+**A Note About Inlining**
+
+*Dispatch* is the process of mapping an input pair of *target type* and *selector symbol* (message name) to a *class*
+and *method*, fixing up the stack to match the input assumptions of the target code, and lastly jumping into the entry
+point of the method bytecode. SuperCollider heavily relies on message passing for almost all operations, so it follows
+that optimizing dispatch would provide great benefit for the language. Because SuperCollider is a dynamic programming
+language, the *target type* is not always known at compile time, requiring support for runtime or *dynamic dispatch*.
+However, the *selector* is usually known at compile time, and it may be possible to combine that with some information
+about the target type to limit the number of possible mappings to inline the message dispatch. Furthermore, if it is
+possible to narrow the options to a single target at compile time, for example in the statement `Array.new`, Hadron
+could potentially inline the called method, thus eliminating the dispatch cost entirely.
+
+To support either form of inlining, the class library could build dependency graphs between known callees and methods,
+so for instance in the following nonsensical SuperCollider class:
+
+{{< highlight SuperCollider "linenos=table" >}}
+Foo {
+    bazz {
+        var a = Array.new;
+        ^a
+    }
+}
+{{< /highlight >}}
