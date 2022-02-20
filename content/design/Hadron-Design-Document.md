@@ -110,7 +110,7 @@ Next, the runtime has to identify the method on the class that this message targ
 
 The dispatch code follows the following pseudocode to finalize the stack before method entry:
 
-```plain
+{{< highlight plain "linenos=table" >}}
 remainingSize <- size remaining in current Stacklet past sp
 
 if remainingSize >= highWaterMark:
@@ -141,7 +141,7 @@ for each key/value pair in keyword arguments:
 if target message has variable arguments:
     create a new Array and copy any remaining input arguments to that
     provide Array value in last argument position
-```
+{{< /highlight >}}
 
 This ordering of operations mimics the current argument selection logic in the legacy SuperCollider interpreter. We
 first copy default values for any absent in-order arguments, then overwrite any in-order values with their
@@ -201,19 +201,20 @@ compiles the class library on startup. The SuperCollider development community m
 the [SCClassLibrary directory](https://github.com/supercollider/supercollider/tree/develop/SCClassLibrary) in the
 SuperCollider repository. It consists of roughly 350 files and 75k lines of code.
 
-## The First Pass
-
 SuperCollider supports object composition through single inheritance. A derived class inherits the class and instance
 variables of its superclass, along with its methods. A derived class can override any superclass method and access the
 superclass method via the `super` keyword. Therefore, to compile a derived class requires that all superclasses instance
 and class variables are already known, at minimum.
 
+## Define Class Heirarchy
+
 The compilation process scans the input class files in arbitrary order, so we compile the class library in multiple
 passes. The first pass extracts all class metadata from each file and builds Abstract Syntax Trees out of each
 defined method. Building the AST allows the class library to unload the file after scanning, freeing up that memory for
-subsequent passes. The first pass defines the entire class heiarchy for the library.
+subsequent passes. By scanning all the files, the first pass produces the complete class heirarchy for the 
+SuperCollider class library.
 
-## The Second Pass
+## Compose Classes From Superclasses
 
 The second pass can then traverse the library in heirarchical order from the root `Object` to all subclasses. This pass
 defines all the member and class variables for each class by concatenating the derived object variables onto a new copy
@@ -243,3 +244,14 @@ Foo {
     }
 }
 {{< /highlight >}}
+
+The class library creates a dependency from `Foo:bazz` to `Array.new`. It seems very likely this graph would by cyclic,
+and breaking cycles could involve a heurstic that selects one of the dependencies in the cycle to not be inlined but
+instead get dynamic dispatch. Once acyclic, a topological sort of the dependencies determines the compilation order of
+the methods on the classes, guaranteeing that any method that could support inline dispatch has already been compiled.
+
+## Compile All Methods
+
+Modulo inlining, method compilation order is arbitrary, but every method of every class must be compiled. As class
+library compilation is typically ahead-of-time instead of just-in-time, the compiler by default should spend more time
+and effort on optimization than it might on just-in-time interpreted code.
