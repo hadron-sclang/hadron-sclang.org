@@ -1,4 +1,6 @@
 ---
 title: Design Document
-type: posts
+geekdocCollapseSection: true
 ---
+
+{{< toc-tree >}}
