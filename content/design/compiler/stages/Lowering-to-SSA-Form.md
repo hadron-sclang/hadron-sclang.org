@@ -46,5 +46,47 @@ factors {
 }
 {{< /highlight >}}
 
-
 ## Locating Named Values
+
+The SuperCollider grammar treats any character sequence starting with a lower-case alpha character and followed by zero
+or more alphanumeric characters or an underscore as an *identifier* or *name* describing a variable value. Identifiers
+describe variables in a variety of contexts, in order of precedence from highest to lowest:
+
+* local variables declared within a method with the `var` keyword
+* arguments provided to methods with the `arg` keyword or pipe `|` symbol
+* instance variables declared in classes with the `var` keyword
+* class variables declared in classes with the `classvar` keyword
+
+SuperCollider is fairly lenient in allowing declarations of different variables with identical names. For example, the
+following code compiles:
+
+{{< highlight plain "lineos=table" >}}
+XX {
+    classvar x = 1;
+    classvar x = 2;
+
+    var x = 3;
+    var x = 4;
+
+    func {
+        var x = 5;
+        var f = {
+            var x = 6;
+            var g = {
+                var x = 7;
+                x.postln;
+            };
+            g.value();
+        };
+        f.value();
+    }
+}
+{{< /highlight >}}
+
+
+|                   | Class Vars | Instance Vars | Arguments | Local Vars |
+|-------------------|------------|---------------|-----------|------------|
+| **Class Vars**    | ambiguous  | instance      | argument  | local      |
+| **Instance Vars** | instance   | ambiguous     | argument  | local      |
+| **Arguments**     | argument   | argument      | **error** | **error**  |
+| **Local Vars**    | local      | local         | **error** | **error**  |
