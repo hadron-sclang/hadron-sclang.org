@@ -87,7 +87,7 @@ call to `func` will always print `7`. The identifier matching algorithm searches
 * class variables declared in classes with the `classvar` keyword
 * constants declared in classes with the `const` keyword
 
-Put another way, if there are identifiers with duplicate names, say `x` in our code example, the algorithm will select
+Put another way, for any two identifiers with duplicate names, say `x` in our code example, the algorithm will select
 the following:
 
 |                   | Local Vars | Arguments | Instance Vars | Class Vars | Constants |
