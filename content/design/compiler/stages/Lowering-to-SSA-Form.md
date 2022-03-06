@@ -84,11 +84,12 @@ XX {
 To resolve `x` in the `x.postln` call, the interpreter will look first in locally-scoped variables, so in this case a
 call to `func` will always print `7`. The identifier matching algorithm searches in order:
 
-* local variables declared within a method with the `var` keyword, from innermost scope outward to root scope
-* arguments provided to methods with the `arg` keyword or pipe `|` symbol
-* instance variables declared in classes with the `var` keyword
-* class variables declared in classes with the `classvar` keyword
-* constants declared in classes with the `const` keyword
+* Local variables declared within a method with the `var` keyword, from innermost scope outward to root scope
+* Arguments provided to methods with the `arg` keyword or pipe `|` symbol
+* Instance variables declared in classes with the `var` keyword
+* Class variables declared in classes with the `classvar` keyword
+* Constants declared in classes with the `const` keyword
+* Keyword names (see below)
 
 Put another way, for any two identifiers with duplicate names, say `x` in our code example, the algorithm will select
 the following:
@@ -196,3 +197,56 @@ validity and existence of the named value anywhere in the importing frame.
 
 Subsequent uses of the imported name behave exactly like local variables. Hadron determines which values need to be
 saved to the heap while lowering the method code to LIR.
+
+### Keyword Names
+
+SuperCollider has some unique logic when handling variables with these specific names:
+
+ * `super`
+ * `this`
+ * `thisFunction`
+ * `thisFunctionDef`
+ * `thisMethod`
+ * `thisProcess`
+ * `thisThread`
+
+The legacy interpreter prohibits assignment to a keyword variable name. This code does not compile:
+
+{{< highlight plain "lineNos=true" >}}
+/* DOES NOT COMPILE */
+Specials {
+    var super = 74;
+    t {
+        super = 17; // ERROR: You may not assign to 'super'.
+        ^super;
+    }
+}
+{{< /highlight >}}
+
+But this code does:
+
+{{< highlight plain "lineNos=true" >}}
+Specials {
+    var <>super = 74;
+    t { ^super; }
+}
+{{< /highlight >}}
+
+And produces the following:
+
+{{< highlight plain "lineNos=true" >}}
+(
+var sp = Specials.new;
+sp.t.postln;           // 74
+sp.super.postln;       // 74
+sp.super = 4;
+sp.t.postln;           // 4
+)
+{{< /highlight >}}
+
+Outside of assignment causing a compilation error, these variable names are all matched at the lowest priority, meaning
+that even a constant with the same name will shadow the matching keyword variable. However, `this` is a notable
+exception to these precedence rules. The interpreter silently supplies `this` as the first argument to every
+SuperCollider method, so it has argument precedence in name searches. Like any other argument name, it shadows any
+instance variables, class variables, or constants with the same name, and declaring an argument or local variable named
+`this` is a compilation error.
