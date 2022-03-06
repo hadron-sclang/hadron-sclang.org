@@ -3,8 +3,9 @@ title: Translation to SSA Form
 weight: 30
 ---
 
-The `BlockBuilder` class translates the input program from a syntax tree to [Single Static Assignment]
-(https://en.wikipedia.org/wiki/Static_single_assignment_form) form. SSA form supports analysis of the flow of values through program execution, including control flow structures like `if` and `while`. SSA form also simplifies
+The `BlockBuilder` class translates the input program from a syntax tree to
+[Single Static Assignment](https://en.wikipedia.org/wiki/Static_single_assignment_form) form. SSA form supports analysis of the flow of values
+through program execution, including control flow structures like `if` and `while`. SSA form also simplifies
 optimization strategies like dead code elimination and constant folding.
 
 Hadron uses two levels of [Intermediate Representation](https://en.wikipedia.org/wiki/Intermediate_representation) for
@@ -14,14 +15,16 @@ in compilation.
 
 ## Type Deduction
 
-SuperCollider is a dynamic, message-driven programming language, meaning that no types are specified at compile time,
-and the runtime dispatch system handles routing messages to the appropriate receiver object. However, inlining and
-optimizing code needs to understand the possible types of any values that it operates on. Furthermore, the types of some
-values are known at compile time, particularly literals.
+SuperCollider is a dynamic, message-driven programming language, and the runtime message dispatch system handles routing
+messages to the appropriate receiver object. However, if the compiler can derive value *types* at compile-time, this
+information can simplify the generated code and unlock powerful optimization techniques. The language has no official
+facility for declaring a typed value, but there are ways the compiler can derive types by following the flow of values 
+throughout a block.
 
-Consider the following code, taken from the class library file `Integer.sc`:
+Consider the following code, taken from the class library file
+[Integer.sc](https://github.com/supercollider/supercollider/blob/be060672f394c0a5054075f7318fdc8dedbb57b3/SCClassLibrary/Common/Math/Integer.sc#L235):
 
-{{< highlight plain "linenos=table" >}}
+{{< highlight plain "lineNos=true,lineNoStart=235" >}}
 factors {
     var num, array, prime;
     if(this <= 1) { ^[] }; // no prime factors exist below the first prime
@@ -48,11 +51,11 @@ factors {
 
 ## Locating Named Values
 
-The SuperCollider grammar treats any character sequence starting with a lower-case alpha character and followed by zero
-or more alphanumeric characters or an underscore as an *identifier* or *name* describing a variable value. SuperCollider is fairly lenient in allowing declarations of different variables with identical names. For example, the
-following code compiles:
+Any character sequence starting with a lower-case alpha character followed by zero or more alphanumeric characters or an
+underscore is an *identifier* or *name* describing a variable value. SuperCollider is fairly lenient in allowing
+declarations of different variables with identical names. For example, the following code compiles:
 
-{{< highlight plain "lineos=table" >}}
+{{< highlight plain "lineNos=true" >}}
 XX {
     const x = -1;
     const x = 0;
@@ -98,53 +101,98 @@ the following:
 | **Class Vars**    | local      | argument  | instance      | *first*    | class     |
 | **Constants**     | local      | argument  | instance      | class      | *first*   |
 
-*Note:* For class variables, instance variables and constants with the same name, the value selected is always the
-*first declared*. This includes for derived classes that re-declare a member variable with the same name as an inherited
-variable; the inherited variable is first declared, and so will always be selected over the derived variable of the same
-name.
+*Note:* For class variables, instance variables, and constants with the same name *within a class*, the compiler always
+selects the *first declared* value.
+
+If there is an identical class variable name between a superclass and subclass, the search starts at the subclass and
+goes up through the class hierarchy. The net result of the hierarchy search is that overriding class variables hides the
+superclass variable. The SuperCollider documentation [discusses
+this](https://doc.sccode.org/Guides/WritingClasses.html#Variable%20Scope) too.
+
+For object instance variables, the search happens in the *opposite* direction, from superclass to subclass. So, for
+example with these classes defined:
+
+{{< highlight plain "lineNos=true" >}}
+M {
+    classvar x = 0;
+    var a = 0;
+}
+
+N : M {
+    classvar x = 1;
+    var a = 1;
+
+    getX { ^x }
+    getA { ^a }
+}
+{{< /highlight >}}
+
+The interpreter produces the following:
+
+{{< highlight plain "lineNos=true" >}}
+(
+var n = N.new;
+n.getX.postln;  // 1
+n.getA.postln;  // 0
+)
+{{< /highlight >}}
+
+However, the automatically defined accessor methods always resolve to the local variable name, so if we modify `N` in
+our example to include a read accessor method on `a`, as follows:
+
+{{< highlight plain "lineNos=true" >}}
+M {
+    classvar x = 0;
+    var a = 0;
+}
+
+N : M {
+    classvar x = 1;
+    var <a = 1;
+
+    getX { ^x }
+    getA { ^a }
+}
+{{< /highlight >}}
+
+The interpreter now produces the following:
+
+{{< highlight plain "lineNos=true" >}}
+(
+var n = N.new;
+n.getX.postln;  // 1
+n.getA.postln;  // 0
+n.a.postln;     // 1
+)
+{{< /highlight >}}
 
 ### Ephemeral And Persistent Values
 
-CPUs are largely constrained to manipulate values in registers, and those registers also are the fastest form of storage
-on any modern computer. As a result Hadron always assigns values to register locations. This works well for most local
-variables, which are not retained after method return, but member variables and local variables with lexical scoping
-have to persist beyond the method. The stack frame is also ephemeral, so all persistent vales must be allocated from the
-heap.
+CPUs manipulate values in registers, and registers are the fastest form of storage they access, so Hadron always assigns
+values to register locations. Local variable lifetimes are limited to their lexical scope, so they exist only in
+registers. Member variables are tied to object lifetimes, so we allocate these from the heap. Local variables can be
+*captured* by heap-allocated functions. Hadron must identify all persistent values during compilation and guarantee that
+they are copied back out to their heap locations on any possible path out of the method.
 
-Furthermore, Hadron must identify all persistent values during compilation, and guarantee that all register-bound values
-are copied back out to their heap locations on all possible paths out of the method. Lexical scoping also means that
-local variables which would normally be considered ephemeral can also be *captured*, which Hadron also needs to detect
-and add them to the list of persisted values, likely in a new Array that can be attached as context to the capturing
-FunctionDef.
-
-It's useful to observe that all of the persistent variables can be accessed as static offsets from pointers - class
-variables are an offset against the global class variable table, instance variables are an offset against the instance
-`this` pointer, arguments are relative to the stack, and captured local variables are against a newly-created `Array`
-instance provided as the context for the `Function`.
+Hadron accesses all persistent values via heap pointers with offsets known at compile-time:
 
 | Type                              | Initial Value             | Save                                 |
 |-----------------------------------|---------------------------|--------------------------------------|
 | Local Variable                    | Constant                  | Never                                |
-| Captured Local Variable (outside) | Constant                  | Save to new Array at time of capture |
-| Captured Local Variable (inside)  | Load from context array   | Save to context Array                |
-| Arguments                         | Load from stack           | *If captured*                        |
+| Arguments                         | Load from stack           | Never                                |
+| Captured Local Value (outside)    | Constant                  | Save to new Array                    |
+| Captured Local Value (inside)     | Load from context array   | Save to context Array                |
 | Instance Vars                     | Load from this pointer    | Save to this pointer                 |
 | Class Vars                        | Load from class var table | Save to class var table              |
 
-The Legacy SuperCollider interpreter keeps the entire stack frame from a captured lexical scope. This includes
-arguments, so it follows that for the purposes of capture arguments behave exactly like local variables; it is possible
-to modify argument values inside the capturing function, and they will persist between calls just like captured local
-variables.
+The Legacy SuperCollider interpreter keeps the entire stack frame from a captured lexical scope, including arguments, and arguments behave exactly like local variables for lexical scoping.
 
-Decision: at block building time, we load all arguments and then treat them like local variables. So keep
-LoadArgumentHIR. Unless captured, these are all *ephemeral* values.
-For instance and class variables along with potentially captured external local values we add a LoadExternalHIR or
-something to indicate that we have a dependency on those things. Add a bit to the NamedValue to indicate if a value is
-ephemeral or not. If not, could also supply a pointer back to the BindExternalHIR..
+### Imported Names
 
-Or add a new struct that has name and origin enum, these are ExternalValues. They are kept at Frame level. Then
-NamedValue inside of HIR can keep a pointer back to them, and if that pointer is non-null it indicates the connection
-back to that value and a persistent value status. Then LoadExternalHIR represents a loading of those external values,
-and StoreExternalHIR a save.
+Once Hadron determines the origin of the named value, it adds the appropriate import HIR statement to the first block
+within the control flow graph of the method. Hadron reserves this block for import statements and argument loads. Because Hadron executes this block before any other, it
+[dominates](https://en.wikipedia.org/wiki/Dominator_(graph_theory)) all other blocks in the graph, ensuring the
+validity and existence of the named value anywhere in the importing frame.
 
-Frames can be *inlined*, in which case the loads/stores for external local variables become aliases/no-ops.
+Subsequent uses of the imported name behave exactly like local variables. Hadron determines which values need to be
+saved to the heap while lowering the method code to LIR.
