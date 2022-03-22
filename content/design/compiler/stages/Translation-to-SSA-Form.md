@@ -244,9 +244,9 @@ sp.t.postln;           // 4
 )
 {{< /highlight >}}
 
-Outside of assignment causing a compilation error, these variable names are all matched at the lowest priority, meaning
-that even a constant with the same name will shadow the matching keyword variable. However, `this` is a notable
-exception to these precedence rules. The interpreter silently supplies `this` as the first argument to every
-SuperCollider method, so it has argument precedence in name searches. Like any other argument name, it shadows any
-instance variables, class variables, or constants with the same name, and declaring an argument or local variable named
-`this` is a compilation error.
+Outside of assignment causing a compilation error, these variable names are all matched at the lowest priority, so even
+a constant with the same name will shadow the matching keyword variable. However, `this` is a notable exception to these
+precedence rules. The interpreter silently supplies `this` as the first argument to every SuperCollider method, so it
+has argument precedence in name searches. Like any other argument name, it shadows any instance variables, class
+variables, or constants with the same name, and declaring an argument or local variable named `this` is a compilation
+error.

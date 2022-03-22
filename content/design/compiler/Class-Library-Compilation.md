@@ -8,8 +8,8 @@ compiles the class library on startup. The SuperCollider development community m
 the [SCClassLibrary directory](https://github.com/supercollider/supercollider/tree/develop/SCClassLibrary) in the
 SuperCollider repository. It consists of roughly 350 files and 75k lines of code.
 
-SuperCollider supports object composition through single inheritance. A derived class inherits the class and instance
-variables of its superclass, along with its methods. A derived class can override any superclass method and access the
+SuperCollider supports object composition through single inheritance. A subclass inherits the class and instance
+variables and methods of its superclass. A subclass can override any superclass method and access the
 superclass method via the `super` keyword. Therefore, we must first compile all class ancestors before compiling a
 derived class.
 

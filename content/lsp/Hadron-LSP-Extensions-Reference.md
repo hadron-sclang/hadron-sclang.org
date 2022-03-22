@@ -22,6 +22,23 @@ export interface HadronCompilationDiagnosticParams {
      * Path to the source code file for generation of compilation diagnostic information.
      */
     textDocument: TextDocumentIdentifier;
+
+    /**
+     * Where in the compilation process to stop.
+     */
+    stopAfter: HadronDiagnosticsStoppingPoint;
+}
+
+export namespace HadronDiagnosticsStoppingPoint {
+    export const AST = 1;
+    export const Frame = 2;
+    export const HIROptimization = 3;
+    export const HIRFinalization = 4;
+    export const Lowering = 5;
+    export const LifetimeAnalysis = 6;
+    export const RegisterAllocation = 7;
+    export const Resolution = 8;
+    export const MachineCodeEmission = 9;
 }
 ```
 

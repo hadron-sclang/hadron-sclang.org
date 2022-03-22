@@ -11,11 +11,13 @@ weight: 0
 
 ## HIR Generation and the Control Flow Graph
 
-## HIR Optimization Passes
+## HIR Optimization
+
+## HIR Finalization
 
 ## Block Serialization and Lowering to LIR
 
-## LIR Optimization Passes
+## LIR Optimization
 
 ## Lifetime Analysis
 
