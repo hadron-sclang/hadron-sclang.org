@@ -4,6 +4,11 @@ title: "Stack Frame"
 
 {{< toc >}}
 
+## New Stack Design
+
+Arguments and local variables need to be stored in a Frame object. This means a memory allocation for every method call.
+
+
 ## Organization
 
 Hadron allocates large-size `Frame` objects and adds them to the root set for scanning during garbage collection. The

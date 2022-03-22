@@ -167,27 +167,6 @@ n.a.postln;     // 1
 )
 {{< /highlight >}}
 
-### Ephemeral And Persistent Values
-
-CPUs manipulate values in registers, and registers are the fastest form of storage they access, so Hadron always assigns
-values to register locations. Local variable lifetimes are limited to their lexical scope, so they exist only in
-registers. Member variables are tied to object lifetimes, so we allocate these from the heap. Local variables can be
-*captured* by heap-allocated functions. Hadron must identify all persistent values during compilation and guarantee that
-they are copied back out to their heap locations on any possible path out of the method.
-
-Hadron accesses all persistent values via heap pointers with offsets known at compile-time:
-
-| Type                              | Initial Value             | Save                                 |
-|-----------------------------------|---------------------------|--------------------------------------|
-| Local Variable                    | Constant                  | Never                                |
-| Arguments                         | Load from stack           | Never                                |
-| Captured Local Value (outside)    | Constant                  | Save to new Array                    |
-| Captured Local Value (inside)     | Load from context array   | Save to context Array                |
-| Instance Vars                     | Load from this pointer    | Save to this pointer                 |
-| Class Vars                        | Load from class var table | Save to class var table              |
-
-The Legacy SuperCollider interpreter keeps the entire stack frame from a captured lexical scope, including arguments, and arguments behave exactly like local variables for lexical scoping.
-
 ### Imported Names
 
 Once Hadron determines the origin of the named value, it adds the appropriate import HIR statement to the first block
@@ -250,3 +229,24 @@ precedence rules. The interpreter silently supplies `this` as the first argument
 has argument precedence in name searches. Like any other argument name, it shadows any instance variables, class
 variables, or constants with the same name, and declaring an argument or local variable named `this` is a compilation
 error.
+
+### Ephemeral And Persistent Values
+
+CPUs manipulate values in registers, and registers are the fastest form of storage they access, so Hadron always assigns
+values to register locations. Local variable lifetimes are limited to their lexical scope, so they exist only in
+registers. Member variables are tied to object lifetimes, so we allocate these from the heap. Local variables can be
+*captured* by heap-allocated functions. Hadron must identify all persistent values during compilation and guarantee that
+they are copied back out to their heap locations on any possible path out of the method.
+
+Hadron accesses all persistent values via heap pointers with offsets known at compile-time:
+
+| Type                              | Initial Value             | Save                                 |
+|-----------------------------------|---------------------------|--------------------------------------|
+| Local Variable                    | Constant                  | Never                                |
+| Arguments                         | Load from stack           | Never                                |
+| Captured Local Value (outside)    | Constant                  | Save to new Array                    |
+| Captured Local Value (inside)     | Load from context array   | Save to context Array                |
+| Instance Vars                     | Load from this pointer    | Save to this pointer                 |
+| Class Vars                        | Load from class var table | Save to class var table              |
+
+The Legacy SuperCollider interpreter keeps the entire stack frame from a captured lexical scope, including arguments, and arguments behave exactly like local variables for lexical scoping.
