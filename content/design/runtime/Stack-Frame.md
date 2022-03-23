@@ -6,8 +6,8 @@ title: "Stack Frame"
 
 ## New Stack Design
 
-Arguments and local variables need to be stored in a Frame object. This means a memory allocation for every method call.
-
+To support lexical scoping and thread suspensions, Hadron keeps arguments and local variables in a Frame array. Each
+`Thread` object also maintains a stack for
 
 ## Organization
 
