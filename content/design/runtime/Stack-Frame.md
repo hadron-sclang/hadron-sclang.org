@@ -6,8 +6,7 @@ title: "Stack Frame"
 
 ## New Stack Design
 
-To support lexical scoping and thread suspensions, Hadron keeps arguments and local variables in a Frame array. Each
-`Thread` object also maintains a stack for
+To support lexical scoping and thread suspensions, Hadron keeps arguments and local variables in a Frame array. 
 
 ## Organization
 
