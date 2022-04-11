@@ -4,9 +4,53 @@ title: "Stack Frame"
 
 {{< toc >}}
 
-## New Stack Design
+## The SuperCollider Frame
 
-To support lexical scoping and thread suspensions, Hadron keeps arguments and local variables in a Frame array. 
+SuperCollider supports [lexical closure](https://doc.sccode.org/Reference/Scope.html). This means that `Frame` objects,
+which contain the argument and local variable values, may outlive the code invocation they support. The
+[Function](https://doc.sccode.org/Classes/Function.html) object keeps a reference to the containing `Frame` in its
+`context` member, preventing the premature garbage collection of the `Frame` until the `Function` itself is garbage
+collected.
+
+The [Frame](https://doc.sccode.org/Classes/Frame.html) object has no public member variables from the SuperCollider
+language side. Inside the interpreter, Legacy SuperCollider (henceforth LSC) defines the `Frame` in
+`lang/LangSource/PyrKernel.h` as:
+
+{{< highlight cpp "lineNos=table,lineNoStart=78">}}
+struct PyrFrame : public PyrObjectHdr {
+    PyrSlot method;
+    PyrSlot caller;
+    PyrSlot context;
+    PyrSlot homeContext;
+    PyrSlot ip;
+    PyrSlot vars[1];
+};
+{{< /highlight >}}
+
+I haven't found any documentation about the intended uses of the members of `PyrFrame`, but I have read the code that
+constructs and consumes them during method calls, particularly around `executeMethodWithKeys` inside of
+`lang/LangSource/PyrMessage.cpp`, and have inferred the following:
+
+ * `method`: An instance of `Method` where the executable code associated with this `Frame` is defined. On frame
+   creation, LSC sets `method` to the method about to be called, and then sets a global variable method field to the
+   same value. The interpreter resolves `thisMethod` to the same global variable method field, so `method` usually has
+   the same semantics as `thisMethod`.
+ * `caller`: A `Frame` from the calling code. Used by the interpreter to return to when exiting this frame.
+ * `context`: A `Frame` defining the *next* outermost context for any nested functions. For top-level method code that
+   has no outer context, LSC makes this self-referential.
+ * `homeContext`: A `Frame` defining the *top* outermost context for any nested functions. For top-level method code
+   LSC makes this self-referential.
+ * `ip`: An instruction pointer used for continuing in this frame.
+ * `vars`: The use of a size one array as the last element in a structure is a common idiom in LSC code and implies that
+   actual `PyrFrame` objects have additional storage appended to accommodate the local variables stored in the
+   frame.
+
+Hadron maintains a *frame* pointer, which points at memory relevant to the current executing method, and a *stack*
+pointer, which points at arguments and values required for any future method invocation.
+
+To support lexical scoping and thread suspensions, Hadron keeps arguments and local variables in a `Frame` object. For
+[closed](https://doc.sccode.org/Classes/Function.html#-isClosed) functions, we can create a `Frame` directly on
+the stack, but for functions that aren't closed the Frame
 
 ## Organization
 
