@@ -6,12 +6,6 @@ title: "Stack Frame"
 
 ## The SuperCollider Frame
 
-SuperCollider supports [lexical closure](https://doc.sccode.org/Reference/Scope.html). This means that `Frame` objects,
-which contain the argument and local variable values, may outlive the code invocation they support. The
-[Function](https://doc.sccode.org/Classes/Function.html) object keeps a reference to the containing `Frame` in its
-`context` member, preventing the premature garbage collection of the `Frame` until the `Function` itself is garbage
-collected.
-
 The [Frame](https://doc.sccode.org/Classes/Frame.html) object has no public member variables from the SuperCollider
 language side. Inside the interpreter, Legacy SuperCollider (henceforth LSC) defines the `Frame` in
 `lang/LangSource/PyrKernel.h` as:
@@ -45,14 +39,25 @@ constructs and consumes them during method calls, particularly around `executeMe
    actual `PyrFrame` objects have additional storage appended to accommodate the local variables stored in the
    frame.
 
+SuperCollider supports [lexical closure](https://doc.sccode.org/Reference/Scope.html). This means that `Frame` objects,
+which contain the argument and local variable values, may outlive the code invocation they support. The
+[Function](https://doc.sccode.org/Classes/Function.html) object keeps a reference to the containing `Frame` in its
+`context` member, preventing the premature garbage collection of the `Frame` until the `Function` itself is garbage
+collected.
+
+For strictly correct behavior, Hadron could always allocate a new frame object for every method call. But this comes at
+the performance cost of a per-message memory allocation and subsequent garbage collection operation. The majority of
+methods are [closed](https://doc.sccode.org/Classes/Function.html#-isClosed), meaning they don't use lexical closure and
+so don't need the frame to outlive their invocation.
+
+
+## Hadron Frame Organization
+
 Hadron maintains a *frame* pointer, which points at memory relevant to the current executing method, and a *stack*
-pointer, which points at arguments and values required for any future method invocation.
+pointer, which points at arguments and values required for any future method invocation. The frame pointer can point at
+a separately allocated frame or at a location on the stack, a determination made by the message dispatch code at
+runtime.
 
-To support lexical scoping and thread suspensions, Hadron keeps arguments and local variables in a `Frame` object. For
-[closed](https://doc.sccode.org/Classes/Function.html#-isClosed) functions, we can create a `Frame` directly on
-the stack, but for functions that aren't closed the Frame
-
-## Organization
 
 Hadron allocates large-size `Frame` objects and adds them to the root set for scanning during garbage collection. The
 `Frame` objects are not contiguous but rather individual chunks of memory with room for many stack frames in each. Some
